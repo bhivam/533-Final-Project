@@ -1,0 +1,5 @@
+openai==1.20.0
+torch==2.2.2
+matplotlib==3.8.4
+tiktoken==0.6.0
+datasets==2.18.0
