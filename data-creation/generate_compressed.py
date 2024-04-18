@@ -29,7 +29,6 @@ def get_text_chunks(full_text, chunk_size=512):
     chunks = []
     tok_full_text = tokenizer.encode(full_text)
     end_toks = set(tokenizer.encode(".") + tokenizer.encode("\n"))
-
     text_len = len(tok_full_text)
     i = 0
 
@@ -56,7 +55,8 @@ def compress(text):
     prompts["user_prompt"] = prompts["user_prompt"].format(text_to_compress=text)
 
     res = openai_client.chat.completions.create(
-        model="gpt-4-turbo-2024-04-09",
+        # model="gpt-4-turbo-2024-04-09",
+        model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": prompts["system_prompt"]},
             {"role": "user", "content": prompts["user_prompt"]},
