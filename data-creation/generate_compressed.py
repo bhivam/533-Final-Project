@@ -4,6 +4,7 @@ import os
 import tiktoken
 from openai import OpenAI
 import time
+from tqdm import tqdm
 
 tokenizer = tiktoken.encoding_for_model("gpt-4")
 openai_client = OpenAI()
@@ -52,14 +53,14 @@ def get_text_chunks(full_text, chunk_size=512):
 
 def compress(text):
 
-    prompts["user_prompt"] = prompts["user_prompt"].format(text_to_compress=text)
+    user_prompt = prompts["user_prompt"].format(text_to_compress=text)
 
     res = openai_client.chat.completions.create(
         # model="gpt-4-turbo-2024-04-09",
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": prompts["system_prompt"]},
-            {"role": "user", "content": prompts["user_prompt"]},
+            {"role": "user", "content": user_prompt},
         ],
         temperature=0.3,
         top_p=1.0,
@@ -69,45 +70,76 @@ def compress(text):
 
 
 def create_compression_dataset():
-    data = json.load(open("meeting_data.json", "r"))
+    meeting_data_fp = open("meeting_data.json", "r")
+    data = json.load(meeting_data_fp)
+    meeting_data_fp.close()
 
     compression_data = []
+    compressed_idxs = set()
+    if os.path.exists("compressed_meeting_data.json"):
+        ac_meeeting_data_fp = open("compressed_meeting_data.json", "r")
+        ac_data = json.load(ac_meeeting_data_fp)
+        ac_meeeting_data_fp.close()
 
-    start_time = time.time()
-    for i, datum in enumerate(data):
-        prev_time = time.time()
-        print(
-            f"datapoint {i}",
-            f"{i / len(data)}% Compression Completed",
-            f"compressed in {prev_time - start_time} seconds",
-        )
+        for ac_datum in ac_data:
+            compressed_idxs.add(ac_datum["index"])
+        compression_data.extend(ac_data)
 
-        if i == 2:
-            break
+    last_save_len = 0
 
-        new_datum = {"text": datum["prompt"]}
+    for i, datum in tqdm(enumerate(data), desc="Data Compression ", position=1):
+        if i in compressed_idxs:
+            continue
+
+        if len(compression_data) % 10 == 0:
+            compressed_meeting_data_fp = open("compressed_meeting_data.json", "w")
+            json.dump(compression_data, compressed_meeting_data_fp)
+            compressed_meeting_data_fp.close()
+
+            last_save_len = len(compression_data)
+
+            print(f"Saved {last_save_len} data points!")
+
+        exit = False
+
         chunks = get_text_chunks(datum["prompt"])
-        comps = []
-        for j, chunk in enumerate(chunks):
-            print(f"{j/len(chunks)} completed")
+
+        while True:
             try:
-                comps.append(compress(chunk))
-            except Exception as e:
-                print(e)
+                print("examples processed this session", len(compression_data))
+
+                new_datum = {"text": datum["prompt"]}
+                comps = []
+                for chunk in tqdm(chunks, desc="Chunk Compression", position=0):
+                    comps.append(compress(chunk))
+
+                new_datum["compressed_text"] = "".join(comps)
+                new_datum["text_list"] = chunks
+                new_datum["compressed_list"] = comps
+                new_datum["index"] = i
+
+                compression_data.append(new_datum)
                 break
 
-        new_datum["compressed_text"] = "".join(comps)
-        new_datum["text_list"] = chunks
-        new_datum["compressed_list"] = comps
+            except KeyboardInterrupt:
+                print("Keyboard interrupt stopped compression.")
+                exit = True
+                break
 
-    print("100% Compression Completed")
-    print("Saving Compression Data...")
+            except Exception as err:
+                print("Some other error occurred while executing:")
+                print(err)
 
-    compression_data.append(new_datum)
+        if exit:
+            break
 
-    json.dump(compression_data, open("compressed_meeting_data.json", "w"), indent=2)
-
-    print("Compression Data Saved!")
+    if len(compression_data) >= last_save_len:
+        compressed_meeting_data_fp = open("compressed_meeting_data.json", "r")
+        json.dump(compression_data, compressed_meeting_data_fp)
+        compressed_meeting_data_fp.close()
+        print("Compression Data Saved!")
+    else:
+        print("Error in pushing compressed data to array.")
 
 
 def main():
@@ -117,7 +149,7 @@ def main():
 
     print("Data Loaded!")
 
-    print("Compressing")
+    print("Compressing\n")
     create_compression_dataset()
 
 
