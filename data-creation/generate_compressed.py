@@ -3,7 +3,6 @@ import json
 import os
 import tiktoken
 from openai import OpenAI
-import time
 from tqdm import tqdm
 
 tokenizer = tiktoken.encoding_for_model("gpt-4")
