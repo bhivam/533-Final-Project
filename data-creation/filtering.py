@@ -4,7 +4,7 @@ import numpy
 
 filtered_file = json.load(open("filtered_file.json", "r"))
 annotated_file = json.load(open("label_word.json", "r"))
-variation_threshold = numpy.percentile(filtered_file["variation_rate"], 90)
+variation_threshold = numpy.percentile(filtered_file["variation_rate"], 80)
 count = 0
 temp_data = {}
 alignment_list = []
@@ -19,7 +19,7 @@ for i in annotated_file.keys():
         alignment_list.append(annotated_file[i]["alignment_gap"])
 
 final_data = {}
-alignment_threshold = numpy.percentile(alignment_list, 90)
+alignment_threshold = numpy.percentile(alignment_list, 80)
 for i in temp_data.keys():
     if temp_data[i]["alignment_gap"] >= alignment_threshold:
         final_data[count] = {
@@ -28,7 +28,5 @@ for i in temp_data.keys():
             "labels": temp_data[i]["labels"],
         }
         count = count + 1
-
-print(final_data)
 
 json.dump(final_data, open("quality_control_data.json", "w"), indent=4)
